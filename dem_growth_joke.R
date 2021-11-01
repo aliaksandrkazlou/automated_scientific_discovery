@@ -75,7 +75,7 @@ dt_wdi <- data.table(dt_wdi)
 dt_wdi <- dt_wdi[region != "Aggregates"]
 
 # get V-DEM data
-dt_vdem <- fread("/Users/aliaksandrkazlou/dev/V-Dem-DS-CY+Others-v7.1.csv")
+dt_vdem <- fread("V-Dem-DS-CY+Others-v7.1.csv")
 # create a new 'conflict' variable 
 dt_vdem[,conflict := ifelse(e_miinteco + e_miinterc > 0, 1, 0)]
 dt_vdem[,freedom_house := (e_fh_pr + e_fh_cl)/2]
@@ -190,63 +190,3 @@ df_results <- na.omit(df_results)
 df_results$formula <- as.character(df_results$formula)
 write.csv(df_results, file = "dem_growth_results.csv", row.names = FALSE)
 
-#df_results <- read.csv("results.csv")
-
-#### Graphs ---------------------
-
-showtext_auto()
-
-p <- ggplot(df_results, aes(x = t)) + 
-  geom_histogram(bins = 100, fill = "red") +
-  theme_minimal(base_size = 9, base_family = "baloo2") +
-  theme(plot.subtitle = element_text(color = "#666666"),
-        plot.caption = element_text(color = "#AAAAAA")) +
-  labs(title = "T-statistic distribution",
-       subtitle = "across 8034 democracy-growth regressions",
-       caption = "by Aliaksandr Kazlou — akazlou.github.io")
-
-## On-screen device
-quartz()
-print(p)
-
-## PNG device
-ggsave(plot = p, "democracy_growth_tstatistic.png", dpi = "retina")
-
-p2 <- ggplot(df_results, aes(x = p)) + 
-  geom_histogram(bins = 100, fill = "red") +
-  theme_minimal(base_size = 9, base_family = "baloo2") +
-  theme(plot.subtitle = element_text(color = "#666666"),
-        plot.caption = element_text(color = "#AAAAAA")) +
-  labs(title = "P-values distribution",
-       subtitle = "across 8034 democracy-growth regressions",
-       caption = "by Aliaksandr Kazlou — akazlou.github.io")
-quartz()
-print(p2)
-
-ggsave(plot = p2, "democracy_growth_pvalue.png", dpi = "retina")
-
-showtext_auto(FALSE)
-
-# negative significant
-sum(estimates$p[estimates$beta < 0] < 0.05, na.rm = T)/nrow(na.omit(estimates))
-# negative insignificant
-sum(estimates$p[estimates$beta < 0] >= 0.05, na.rm = T)/nrow(na.omit(estimates))
-# positive insignificant
-sum(estimates$p[estimates$beta > 0] >= 0.05, na.rm = T)/nrow(na.omit(estimates))
-# positive significant
-sum(estimates$p[estimates$beta > 0] < 0.05, na.rm = T)/nrow(na.omit(estimates))
-
-# height
-
-n <- seq(30,300000,100)
-n <- c(30,60,600,15000000)
-min_effect <- c()
-for (i in 1:length(n)) {
-  control <- rnorm(n[[i]], 167.4, 7.97)
-  experiment <- rnorm(n[[i]], 167.4 + 0.5, 7.97)
-  s1 <- sd(control)
-  s2 <- sd(experiment)
-  se <- sqrt( (s1^2/n[[i]]) + (s2^2/n[[i]]) )
-  min_effect <- cbind(min_effect, se*1.96)
-}
-df_length <- data.frame(n = n, min_effect = as.vector(min_effect))
