@@ -1,2 +1,2 @@
 # automated_scientific_discovery
-automated scientific discovery
+Code to produce 8034 democracy-growth regressions 
