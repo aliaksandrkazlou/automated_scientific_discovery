@@ -17,14 +17,9 @@ font_add_google("Oswald", "oswald")
 
 # takes logs from positive numerics, ignores the rest
 log_positives <- function(x) {
-  # check if numeric
-  if (is.numeric(x)) {
-    # check if positive
-    if (min(x, na.rm = T) > 0) {
+  # check if numeric and positive
+  if (is.numeric(x) & (min(x, na.rm = T)) > 0) {
       return(log(x))
-    } else {
-      return(x)
-    } 
   } else {
     return(x)
   }
@@ -32,19 +27,19 @@ log_positives <- function(x) {
 
 #### Data Preparation --------------------
 
-# List of variables as in Hristos Doucouliagos and Mehmet Ulubasoglu
+# Indepedent Variables summary
 
-# Region BV: 1 = regional dummies used (region from WDI)
-# Inequality BV: 1 = inequality variable included (SI.POV.GINI)
-# Ecofreedom BV: 1 = economic freedom included (v2xcl_prpty)
-# Instability BV: 1 = political instability control included (e_miinteco, e_miinterc )
-# Inflation BV: 1 = controls for inflation included (FP.CPI.TOTL.ZG)
-# Population BV: 1 = controls for population included (SP.POP.TOTL)
-# Convergence BV: 1 = controls for initial income included (NY.GDP.PCAP.KD.ZG)
-# Human Capital BV: 1 = controls for human capital included (SE.SEC.ENRR.FE, SP.DYN.LE00.FE.IN)
-# Physical Capital BV: 1 = controls for physical capital included (NE.GDI.TOTL.KD.ZG)
-# Openness BV: 1 = controls for foreign trade included (NE.TRD.GNFS.ZS)
-# Govt Size BV: 1 = controls for government included (GC.XPN.TOTL.GD.ZS)
+# Inequality: control for inequality (SI.POV.GINI)
+# Ecofreedom: control for economic freedom (v2xcl_prpty)
+# Conflict: control for external and internal conflicts (e_miinteco, e_miinterc )
+# Inflation: control for inflation (FP.CPI.TOTL.ZG)
+# Population: controls for population size (SP.POP.TOTL)
+# Convergence: controls for initial income (NY.GDP.PCAP.KD.ZG)
+# Human Capital: controls for life expectancy 
+# or secondary school enrollment (SE.SEC.ENRR.FE, SP.DYN.LE00.FE.IN)
+# Physical Capital: controls for physical capital (NE.GDI.TOTL.KD.ZG)
+# Openness: controls for import and export (NE.TRD.GNFS.ZS)
+# Govt Size: controls for government expenses (GC.XPN.TOTL.GD.ZS)
 
 wdi_indicators <- c("NY.GDP.PCAP.KD.ZG", # GDP per capita growth (annual %)
                     "NY.GDP.PCAP.KD", # GDP per capita
@@ -58,7 +53,7 @@ wdi_indicators <- c("NY.GDP.PCAP.KD.ZG", # GDP per capita growth (annual %)
                     "GC.XPN.TOTL.GD.ZS" # Expense (% of GDP)
 )
 
-# World Bank Data
+# Download WDI data
 dt_wdi <- WDI(country   = "all",
               indicator = wdi_indicators,
               start     = "1960",
@@ -66,16 +61,13 @@ dt_wdi <- WDI(country   = "all",
               extra     = TRUE,
               cache     = NULL)
 
-#write.csv(file = "wdi_data.csv", dt_wdi)
-#dt_wdi <- fread("wdi_data.csv")[,-c("V1")]
-
 dt_wdi <- data.table(dt_wdi)
 
 # get rid of aggregates
 dt_wdi <- dt_wdi[region != "Aggregates"]
 
 # get V-DEM data
-dt_vdem <- fread("V-Dem-DS-CY+Others-v7.1.csv")
+dt_vdem <- fread("/Users/aliaksandrkazlou/dev/V-Dem-DS-CY+Others-v7.1.csv")
 # create a new 'conflict' variable 
 dt_vdem[,conflict := ifelse(e_miinteco + e_miinterc > 0, 1, 0)]
 dt_vdem[,freedom_house := (e_fh_pr + e_fh_cl)/2]
@@ -87,13 +79,13 @@ dt_vdem <- dt_vdem[year  >= "1960" & dt_vdem$year < "2019", .(iso3c = country_te
                                                               freedom_house,
                                                               economic_freedom = v2xcl_prpty,
                                                               conflict)]
-# Merging two datasets
+# Merge two datasets
 dt_main <- dt_wdi[dt_vdem, nomatch=0, on = c("iso3c", "year")]
 dt_main <- dt_main[,-c("iso2c", "iso3c", "capital",
                        "longitude", "latitude", "income",
                        "lending")]
 
-# Renaming variables
+# Rename variables
 old_names <- c("NY.GDP.PCAP.KD.ZG", "NY.GDP.PCAP.KD", "SI.POV.GINI",
                "FP.CPI.TOTL.ZG", "SP.POP.TOTL", "SP.DYN.LE00.FE.IN",
                "SE.SEC.ENRR.FE", "NE.GDI.TOTL.KD.ZG", "NE.TRD.GNFS.ZS",
@@ -108,15 +100,14 @@ setnames(dt_main, old_names, new_names)
 # make all variables lag 1 year in respect to economic growth
 dt_main[, economic_growth := shift(economic_growth, 1, type = "lead"), by = country]
 
-# subsetting variables
+# subset variables
 controls <- c("gdp_level", "economic_freedom", "inequality",
               "population", "inflation", "life_expectancy",
               "enrollment", "physical_capital", "trade",
-              "gov_size", "conflict") # "region", 
+              "gov_size", "conflict")
 dependent_var <- "economic_growth"
 independent_vars <- c("e_polity2", "freedom_house")
 
-#dt_main <- dt_main[ , (controls) := lapply(.SD, log_positives), .SDcols = controls]
 dt_main$year <- as.factor(as.character(dt_main$year))
 
 controls_combinations <- lapply(5:length(controls),
@@ -126,14 +117,14 @@ controls_combinations <- lapply(5:length(controls),
 )
 controls_combinations <- unlist(controls_combinations, recursive=FALSE)
 
-# operationalizing democracy as Polity index
+# operationalize democracy as Polity index
 formulas_polity <- sapply(controls_combinations, function (x) {
   as.formula(paste(dependent_var,
                    paste(c(x, independent_vars[1]), collapse=" + "),
                    sep=" ~ "))
 })
 
-# operationalizing democracy as Freedom House index
+# operationalize democracy as Freedom House index
 formulas_fh <- sapply(controls_combinations, function (x) {
   as.formula(paste(dependent_var,
                    paste(c(x, independent_vars[2]), collapse=" + "),
@@ -146,13 +137,19 @@ formulas <- append(formulas_polity, formulas_fh)
 
 #### Building a pipe-line --------
 
+# SE to use
 re <- c("HC0", "HC3")
+
+# Log transform all IVs including conflict
+# Inspired by log NAICS
 to_log <- c(TRUE, FALSE)
 
+# grid for all possible specifications
 specifications <- expand.grid(formula = formulas,
                               robust_errors = re,
                               log = to_log)
 
+# run the pipe-line
 Sys.time()
 
 t_stats <- c()
@@ -164,6 +161,7 @@ for (i in 1:nrow(specifications)) {
     dt_tmp[ , (controls) := lapply(.SD, log_positives), .SDcols = controls]
  }
   
+  # fit a regression model
   tmp_model <- plm(specification$formula[[1]],
                    data = dt_tmp,
                    index=c("country", "year"),
@@ -189,4 +187,3 @@ df_results <- as.data.frame(specifications)
 df_results <- na.omit(df_results)
 df_results$formula <- as.character(df_results$formula)
 write.csv(df_results, file = "dem_growth_results.csv", row.names = FALSE)
-
