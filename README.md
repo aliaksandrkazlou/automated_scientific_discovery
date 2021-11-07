@@ -1,4 +1,4 @@
 # Automated Scientific Discovery
 Code to produce 8034 democracy-growth regressions 
+![democracy_growth_t_stat](https://user-images.githubusercontent.com/19677270/140640953-556ce133-05cf-4133-8a28-60de02d713ae.png)
 
-![democracy_growth_tstatistic](https://user-images.githubusercontent.com/19677270/140639329-6cb8ad55-bb92-4a96-a10a-c99ac98d5ff2.png)
