@@ -7,12 +7,6 @@ library(plm)
 library(ggplot2)
 library(showtext)
 
-#### Global Options --------------------
-
-font_add_google("Baloo Thambi", "baloo2")
-font_add_google("Roboto", "roboto")
-font_add_google("Oswald", "oswald")
-
 #### Functions --------------------
 
 # takes logs from positive numerics, ignores the rest
